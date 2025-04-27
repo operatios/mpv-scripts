@@ -30,7 +30,15 @@ end
 
 function get_known_folder_path(guid)
     local path = ffi.new("wchar_t*[1]")
-    Shell32.SHGetKnownFolderPath(guid, 0, nil, path)
+    local result = Shell32.SHGetKnownFolderPath(guid, 0, nil, path)
+
+    if result ~= 0 then
+        mp.msg.error("SHGetKnownFolderPath error: " .. result)
+        mp.commandv("show-text", "set-screenshot-dir: SHGetKnownFolderPath error")
+
+        Ole32.CoTaskMemFree(path[0])
+        return nil
+    end
 
     local utf8_path = utf16_to_utf8(path)
     Ole32.CoTaskMemFree(path[0])
@@ -39,8 +47,10 @@ function get_known_folder_path(guid)
 end
 
 function set_screenshot_dir()
-    local path = get_known_folder_path(FOLDERID_Screenshots):gsub("\\", "/")
-    mp.set_property("screenshot-dir", path .. "/mpv")
+    local path = get_known_folder_path(FOLDERID_Screenshots)
+    if path then
+        mp.set_property("screenshot-dir", path:gsub("\\", "/") .. "/mpv")
+    end
 end
 
 mp.register_event("file-loaded", set_screenshot_dir)
